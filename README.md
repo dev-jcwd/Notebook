@@ -65,7 +65,7 @@ Perfect for keeping track of your grinding quotas, daily server tasks, or buildi
 # 🌟 Credits & Community
 
 A massive thank you to **Skia** and **Luriel** for suggesting and inspiring this mod! 
-Check out their awesome Minecraft Server community here: [Join Skia & Luriel's Server](https://discord.gg/YYkVVZwCaX)
+Check out their awesome Minecraft Server community here: [NeoCity SMP](https://discord.gg/YYkVVZwCaX)
 
 🐞 **Found a bug or have a suggestion?**  
 - GitHub: [Notebook issues and suggestions](https://github.com/dev-jcwd/Notebook/issues)
