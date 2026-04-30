@@ -1,4 +1,4 @@
-![Notebook Mod](BANNER.jpg)
+![Notebook Mod](BANNER.gif)
 
 ![Fabric Only](https://img.shields.io/badge/Loader-Fabric-blue?logo=fabricmc&logoColor=white)
 ![Client Side](https://img.shields.io/badge/Environment-Client--Side-green)
