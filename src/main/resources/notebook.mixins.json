@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "com.jcwd.notebook.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+  ],
+  "client": [
+    "ChatHudMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

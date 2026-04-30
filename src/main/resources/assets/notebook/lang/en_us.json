@@ -1,0 +1,10 @@
+{
+  "category.notebook": "Notebook",
+  "key.notebook.edit_hud": "Edit HUD",
+  "key.notebook.toggle_items": "Toggle List",
+  "key.notebook.toggle_todo": "Toggle Todo",
+  "key.notebook.list_next": "List Next Page",
+  "key.notebook.list_prev": "List Previous Page",
+  "key.notebook.todo_next": "To-Do Next Page",
+  "key.notebook.todo_prev": "To-Do Previous Page"
+}

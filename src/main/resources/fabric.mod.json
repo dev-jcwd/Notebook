@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "notebook",
+  "version": "${version}",
+  "name": "Notebook Mod",
+  "description": "Create, share, and view custom item lists and to-dos on the fly.",
+  "authors": [
+    "jcwd"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/notebook/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.jcwd.notebook.NotebookMod"
+    ],
+    "client": [
+      "com.jcwd.notebook.NotebookClient"
+    ]
+  },
+  "mixins": [
+    "notebook.mixins.json"
+  ],
+"depends": {
+    "fabricloader": ">=0.16.9",
+    "minecraft": [
+      ">=1.21.9",
+      "<=1.21.11"
+    ],
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
