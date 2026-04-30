@@ -1,4 +1,4 @@
-# Notebook
+![Notebook Mod](BANNER.jpg)
 
 ![Fabric Only](https://img.shields.io/badge/Loader-Fabric-blue?logo=fabricmc&logoColor=white)
 ![Client Side](https://img.shields.io/badge/Environment-Client--Side-green)
@@ -28,12 +28,12 @@ Perfect for keeping track of your grinding quotas, daily server tasks, or buildi
 
 # ⌨️ Commands
 
-### 🎒 Item Lists (Aliases: `/il` or `/list`)
+### 🎒 Item Lists (Aliases: `/il`)
 - **/itemlists** → Shows all the item lists you have created.  
 - **/il create <name>** → Creates and displays a new item list.  
 - **/il delete <name>** → Deletes the specified list.  
 - **/il display <name>** → Switches your HUD to show this list.  
-- **/il add <listName> <item> <quantity>** → Adds an item quota to your list *(example: `/il add base minecraft:dirt 64`)*.  
+- **/il add <listName> <item> <quantity>** → Adds an item quota to your list *(example: `/il add base dirt 64`)*.  
 - **/il remove <listName> <item> <quantity>** → Removes an item from the list.  
 - **/il share <name>** → Shares the item list to the server chat.  
 - **/il next** or **/il n** → Flips to the next page of your item list.  
