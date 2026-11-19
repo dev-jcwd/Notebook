@@ -1,15 +1,10 @@
 package com.jcwd.notebook.data;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 
-import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class NotebookConfig {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE_PATH = FabricLoader.getInstance().getConfigDir().resolve("notebook_config.json");
 
     // Toggle States
@@ -39,29 +34,17 @@ public class NotebookConfig {
     }
 
     public static void load() {
-        if (Files.exists(FILE_PATH)) {
-            try (Reader reader = Files.newBufferedReader(FILE_PATH)) {
-                ConfigData data = GSON.fromJson(reader, ConfigData.class);
-                if (data != null) {
-                    itemListX = data.itemListX;
-                    itemListY = data.itemListY;
-                    todoListX = data.todoListX;
-                    todoListY = data.todoListY;
-                    activeItemList = data.activeItemList;
-                    activeTodoList = data.activeTodoList;
-                }
-            } catch (IOException e) {
-                System.err.println("Failed to load Notebook Config!");
-            }
-        }
+        ConfigData data = Store.load(FILE_PATH, ConfigData.class);
+        if (data == null) return;
+        itemListX = data.itemListX;
+        itemListY = data.itemListY;
+        todoListX = data.todoListX;
+        todoListY = data.todoListY;
+        activeItemList = data.activeItemList != null ? data.activeItemList : "";
+        activeTodoList = data.activeTodoList != null ? data.activeTodoList : "";
     }
 
     public static void save() {
-        try (Writer writer = Files.newBufferedWriter(FILE_PATH)) {
-            ConfigData data = new ConfigData();
-            GSON.toJson(data, writer);
-        } catch (IOException e) {
-            System.err.println("Failed to save Notebook Config!");
-        }
+        Store.save(FILE_PATH, new ConfigData());
     }
 }

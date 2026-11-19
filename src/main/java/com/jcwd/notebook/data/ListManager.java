@@ -1,44 +1,25 @@
 package com.jcwd.notebook.data;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.fabricmc.loader.api.FabricLoader;
 
-import java.io.*;
-import java.lang.reflect.Type;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class ListManager {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path FILE_PATH = FabricLoader.getInstance().getConfigDir().resolve("notebook_lists.json");
-    
+
     // Stores all lists with the list name as the key
-    private static Map<String, ItemList> lists = new HashMap<>();
+    private static Map<String, ItemList> lists = new LinkedHashMap<>();
 
     public static void loadLists() {
-        if (Files.exists(FILE_PATH)) {
-            try (Reader reader = Files.newBufferedReader(FILE_PATH)) {
-                Type type = new TypeToken<Map<String, ItemList>>(){}.getType();
-                lists = GSON.fromJson(reader, type);
-                if (lists == null) lists = new HashMap<>();
-            } catch (IOException e) {
-                System.err.println("Failed to load Notebook lists!");
-                e.printStackTrace();
-            }
-        }
+        Map<String, ItemList> loaded = Store.load(FILE_PATH, new TypeToken<LinkedHashMap<String, ItemList>>(){}.getType());
+        lists = loaded != null ? loaded : new LinkedHashMap<>();
     }
 
     public static void saveLists() {
-        try (Writer writer = Files.newBufferedWriter(FILE_PATH)) {
-            GSON.toJson(lists, writer);
-        } catch (IOException e) {
-            System.err.println("Failed to save Notebook lists!");
-            e.printStackTrace();
-        }
+        Store.save(FILE_PATH, lists);
     }
 
     public static boolean createList(String name) {
