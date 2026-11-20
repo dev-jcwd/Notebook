@@ -2,7 +2,7 @@
 
 ![Fabric Only](https://img.shields.io/badge/Loader-Fabric-blue?logo=fabricmc&logoColor=white)
 ![Client Side](https://img.shields.io/badge/Environment-Client--Side-green)
-![MC Versions](https://img.shields.io/badge/Minecraft-1.21%20→%201.21.11-yellow)
+![MC Versions](https://img.shields.io/badge/Minecraft-26.1%20→%2026.3-yellow)
 
 [![Join Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/TubuNkwPam)  
 

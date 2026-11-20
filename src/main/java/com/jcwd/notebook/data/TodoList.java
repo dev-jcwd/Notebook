@@ -20,7 +20,7 @@ public class TodoList {
     public void setUseNumbers(boolean useNumbers) { this.useNumbers = useNumbers; }
 
     public void addTask(String task) {
-        this.tasks.put(task.trim(), false); 
+        this.tasks.putIfAbsent(task.trim(), false); 
     }
 
     public boolean removeTask(String task) {

@@ -6,12 +6,12 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.jcwd.notebook.data.ListManager;
 import com.jcwd.notebook.data.ItemList;
 import com.jcwd.notebook.data.NotebookConfig;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import java.util.Map;
 
 public class ListCommand {
@@ -19,70 +19,70 @@ public class ListCommand {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             
             // Explicitly register /itemlists to just show the overview
-            dispatcher.register(ClientCommandManager.literal("itemlists")
+            dispatcher.register(ClientCommands.literal("itemlists")
                 .executes(context -> {
-                    context.getSource().sendFeedback(Text.literal("§eYour Item Lists: §f" + ListManager.getAllLists().keySet()));
+                    context.getSource().sendFeedback(Component.literal("§eYour Item Lists: §f" + ListManager.getAllLists().keySet()));
                     return 1;
                 })
             );
 
             // Register the main /itemlist command tree
-            dispatcher.register(buildTree(ClientCommandManager.literal("itemlist")));
+            dispatcher.register(buildTree(ClientCommands.literal("itemlist")));
             
             // Register the exact same tree under the /il alias
-            dispatcher.register(buildTree(ClientCommandManager.literal("il")));
+            dispatcher.register(buildTree(ClientCommands.literal("il")));
         });
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> buildTree(LiteralArgumentBuilder<FabricClientCommandSource> root) {
         return root
             .executes(context -> {
-                context.getSource().sendFeedback(Text.literal("§eYour Item Lists: §f" + ListManager.getAllLists().keySet()));
+                context.getSource().sendFeedback(Component.literal("§eYour Item Lists: §f" + ListManager.getAllLists().keySet()));
                 return 1;
             })
-            .then(ClientCommandManager.literal("create")
-                .then(ClientCommandManager.argument("name", StringArgumentType.word())
+            .then(ClientCommands.literal("create")
+                .then(ClientCommands.argument("name", StringArgumentType.word())
                     .executes(context -> {
                         String name = StringArgumentType.getString(context, "name");
                         if (ListManager.createList(name)) {
                             NotebookConfig.activeItemList = name;
                             NotebookConfig.itemPage = 0; 
                             NotebookConfig.save();
-                            context.getSource().sendFeedback(Text.literal("§aCreated and displaying list: §f" + name));
+                            context.getSource().sendFeedback(Component.literal("§aCreated and displaying list: §f" + name));
                         } else {
-                            context.getSource().sendError(Text.literal("§cList already exists."));
+                            context.getSource().sendError(Component.literal("§cList already exists."));
                         }
                         return 1;
                     })))
-            .then(ClientCommandManager.literal("delete")
-                .then(ClientCommandManager.argument("name", StringArgumentType.word())
+            .then(ClientCommands.literal("delete")
+                .then(ClientCommands.argument("name", StringArgumentType.word())
                     .executes(context -> {
                         String name = StringArgumentType.getString(context, "name");
                         if (ListManager.deleteList(name)) {
-                            context.getSource().sendFeedback(Text.literal("§cDeleted list: §f" + name));
+                            context.getSource().sendFeedback(Component.literal("§cDeleted list: §f" + name));
                         } else {
-                            context.getSource().sendError(Text.literal("§cList not found."));
+                            context.getSource().sendError(Component.literal("§cList not found."));
                         }
                         return 1;
                     })))
-            .then(ClientCommandManager.literal("display")
-                .then(ClientCommandManager.argument("name", StringArgumentType.word())
+            .then(ClientCommands.literal("display")
+                .then(ClientCommands.argument("name", StringArgumentType.word())
                     .executes(context -> {
                         String name = StringArgumentType.getString(context, "name");
                         if (ListManager.getList(name) != null) {
                             NotebookConfig.activeItemList = name;
                             NotebookConfig.itemPage = 0; 
                             NotebookConfig.save();
-                            context.getSource().sendFeedback(Text.literal("§aNow displaying list: §f" + name));
+                            context.getSource().sendFeedback(Component.literal("§aNow displaying list: §f" + name));
                         } else {
-                            context.getSource().sendError(Text.literal("§cList not found."));
+                            context.getSource().sendError(Component.literal("§cList not found."));
                         }
                         return 1;
                     })))
-            .then(ClientCommandManager.literal("add")
-                .then(ClientCommandManager.argument("name", StringArgumentType.word())
-                    .then(ClientCommandManager.argument("item", StringArgumentType.word())
-                        .then(ClientCommandManager.argument("quantity", IntegerArgumentType.integer(1))
+            .then(ClientCommands.literal("add")
+                .then(ClientCommands.argument("name", StringArgumentType.word())
+                    .then(ClientCommands.argument("item", StringArgumentType.word())
+                        .then(ClientCommands.argument("quantity", IntegerArgumentType.integer(1))
                             .executes(context -> {
                                 String name = StringArgumentType.getString(context, "name");
                                 String item = StringArgumentType.getString(context, "item");
@@ -90,27 +90,27 @@ public class ListCommand {
                                 ItemList list = ListManager.getList(name);
                                 
                                 if (list != null) {
-                                    if (!item.contains(":")) item = "minecraft:" + item;
+                                    item = ItemList.normalize(item);
                                     
                                     // FIXED: Validation Check for invalid items
                                     Identifier id = Identifier.tryParse(item);
-                                    if (id == null || !Registries.ITEM.containsId(id)) {
-                                        context.getSource().sendError(Text.literal("§cInvalid item name! §7(Example: dirt or minecraft:stone)"));
+                                    if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) {
+                                        context.getSource().sendError(Component.literal("§cInvalid item name! §7(Example: dirt or minecraft:stone)"));
                                         return 0; // Kills the command
                                     }
                                     
                                     list.addItem(item, quantity);
                                     ListManager.saveLists();
-                                    context.getSource().sendFeedback(Text.literal("§aAdded " + quantity + " " + item + " to " + name));
+                                    context.getSource().sendFeedback(Component.literal("§aAdded " + quantity + " " + item + " to " + name));
                                 } else {
-                                    context.getSource().sendError(Text.literal("§cList not found."));
+                                    context.getSource().sendError(Component.literal("§cList not found."));
                                 }
                                 return 1;
                             })))))
-            .then(ClientCommandManager.literal("remove")
-                .then(ClientCommandManager.argument("name", StringArgumentType.word())
-                    .then(ClientCommandManager.argument("item", StringArgumentType.word())
-                        .then(ClientCommandManager.argument("quantity", IntegerArgumentType.integer(1))
+            .then(ClientCommands.literal("remove")
+                .then(ClientCommands.argument("name", StringArgumentType.word())
+                    .then(ClientCommands.argument("item", StringArgumentType.word())
+                        .then(ClientCommands.argument("quantity", IntegerArgumentType.integer(1))
                             .executes(context -> {
                                 String name = StringArgumentType.getString(context, "name");
                                 String item = StringArgumentType.getString(context, "item");
@@ -118,20 +118,20 @@ public class ListCommand {
                                 ItemList list = ListManager.getList(name);
                                 
                                 if (list != null) {
-                                    if (!item.contains(":")) item = "minecraft:" + item;
+                                    item = ItemList.normalize(item);
                                     if (list.removeItem(item, quantity)) {
                                         ListManager.saveLists();
-                                        context.getSource().sendFeedback(Text.literal("§cRemoved " + quantity + " " + item + " from " + name));
+                                        context.getSource().sendFeedback(Component.literal("§cRemoved " + quantity + " " + item + " from " + name));
                                     } else {
-                                        context.getSource().sendError(Text.literal("§cItem not found in list."));
+                                        context.getSource().sendError(Component.literal("§cItem not found in list."));
                                     }
                                 } else {
-                                    context.getSource().sendError(Text.literal("§cList not found."));
+                                    context.getSource().sendError(Component.literal("§cList not found."));
                                 }
                                 return 1;
                             })))))
-            .then(ClientCommandManager.literal("share")
-                .then(ClientCommandManager.argument("name", StringArgumentType.word())
+            .then(ClientCommands.literal("share")
+                .then(ClientCommands.argument("name", StringArgumentType.word())
                     .executes(context -> {
                         String name = StringArgumentType.getString(context, "name");
                         ItemList list = ListManager.getList(name);
@@ -151,23 +151,23 @@ public class ListCommand {
                             }
                             sb.append("]");
                             if (sb.length() > 256) {
-                                context.getSource().sendError(Text.literal("§cEven with compression, this list is too large for a single chat message!"));
+                                context.getSource().sendError(Component.literal("§cEven with compression, this list is too large for a single chat message!"));
                             } else {
-                                net.minecraft.client.MinecraftClient.getInstance().getNetworkHandler().sendChatMessage(sb.toString());
+                                context.getSource().getPlayer().connection.sendChat(sb.toString());
                             }
                         } else {
-                            context.getSource().sendError(Text.literal("§cList not found."));
+                            context.getSource().sendError(Component.literal("§cList not found."));
                         }
                         return 1;
                     })))
             // PAGINATION COMMANDS
-            .then(ClientCommandManager.literal("next")
+            .then(ClientCommands.literal("next")
                 .executes(context -> { NotebookConfig.itemPage++; return 1; }))
-            .then(ClientCommandManager.literal("n")
+            .then(ClientCommands.literal("n")
                 .executes(context -> { NotebookConfig.itemPage++; return 1; }))
-            .then(ClientCommandManager.literal("previous")
+            .then(ClientCommands.literal("previous")
                 .executes(context -> { NotebookConfig.itemPage--; return 1; }))
-            .then(ClientCommandManager.literal("p")
+            .then(ClientCommands.literal("p")
                 .executes(context -> { NotebookConfig.itemPage--; return 1; }));
     }
 }

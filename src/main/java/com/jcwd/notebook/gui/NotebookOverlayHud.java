@@ -1,79 +1,99 @@
 package com.jcwd.notebook.gui;
 
 import com.jcwd.notebook.data.*;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
+import com.jcwd.notebook.util.Compat;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
 
-public class NotebookOverlayHud implements HudRenderCallback {
+public class NotebookOverlayHud implements HudElement {
 
-    private int countItemInInventory(MinecraftClient client, Item targetItem) {
-        if (client.player == null) return 0;
-        int count = 0;
-        for (int i = 0; i < client.player.getInventory().size(); i++) {
-            ItemStack stack = client.player.getInventory().getStack(i);
-            if (stack.isOf(targetItem)) {
-                count += stack.getCount();
-            }
+    private static final int BOX_WIDTH = 140;
+    private static final int ITEMS_PER_PAGE = 10;
+
+    /** Resolved once per item id: registry lookup, default stack and display name never change at runtime. */
+    private record Resolved(Item item, ItemStack stack, String name) {}
+    private static final Resolved UNKNOWN = new Resolved(null, null, null);
+    private final Map<String, Resolved> resolved = new HashMap<>();
+    private final Map<Item, Integer> inventoryCounts = new HashMap<>();
+
+    private Resolved resolve(String itemStr) {
+        return resolved.computeIfAbsent(itemStr, key -> {
+            Identifier id = Identifier.tryParse(key);
+            if (id == null) return UNKNOWN;
+            return BuiltInRegistries.ITEM.getOptional(id)
+                .map(item -> {
+                    ItemStack stack = item.getDefaultInstance();
+                    return new Resolved(item, stack, stack.getHoverName().getString());
+                })
+                .orElse(UNKNOWN);
+        });
+    }
+
+    /** One pass over the inventory per frame instead of one pass per listed item. */
+    private void countInventory(Minecraft client) {
+        inventoryCounts.clear();
+        if (client.player == null) return;
+        Inventory inventory = client.player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (!stack.isEmpty()) inventoryCounts.merge(stack.getItem(), stack.getCount(), Integer::sum);
         }
-        return count;
+    }
+
+    private static int totalPages(int size) {
+        return Math.max(1, (size + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE);
     }
 
     @Override
-    public void onHudRender(DrawContext context, net.minecraft.client.render.RenderTickCounter tickCounter) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.options.hudHidden) return;
+    public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker tickCounter) {
+        Minecraft client = Minecraft.getInstance();
+        if (Compat.isHudHidden(client)) return;
 
-        TextRenderer textRenderer = client.textRenderer;
-        int screenWidth = client.getWindow().getScaledWidth();
-        int boxWidth = 140; 
-        int itemsPerPage = 10;
-
+        Font font = client.font;
+        int screenWidth = client.getWindow().getGuiScaledWidth();
 
         if (NotebookConfig.showItemList && NotebookConfig.activeItemList != null && !NotebookConfig.activeItemList.isEmpty()) {
             ItemList activeList = ListManager.getList(NotebookConfig.activeItemList);
             if (activeList != null) {
+                countInventory(client);
                 int x = NotebookConfig.itemListX;
                 int y = NotebookConfig.itemListY;
                 boolean isRightAligned = x > (screenWidth / 2);
 
-
-                List<Map.Entry<String, Integer>> entryList = new ArrayList<>(activeList.getItems().entrySet());
-                int totalPages = Math.max(1, (int) Math.ceil((double) entryList.size() / itemsPerPage));
-                if (NotebookConfig.itemPage >= totalPages) NotebookConfig.itemPage = totalPages - 1;
-                if (NotebookConfig.itemPage < 0) NotebookConfig.itemPage = 0;
-
-                int startIndex = NotebookConfig.itemPage * itemsPerPage;
-                int endIndex = Math.min(startIndex + itemsPerPage, entryList.size());
+                Map<String, Integer> entries = activeList.getItems();
+                int totalPages = totalPages(entries.size());
+                NotebookConfig.itemPage = Math.max(0, Math.min(NotebookConfig.itemPage, totalPages - 1));
 
                 String pageString = totalPages > 1 ? " (" + (NotebookConfig.itemPage + 1) + "/" + totalPages + ")" : "";
                 String title = "List: " + activeList.getName() + pageString;
-                int titleX = isRightAligned ? x + boxWidth - textRenderer.getWidth(title) : x;
-                
-                context.drawTextWithShadow(textRenderer, title, titleX, y, 0xFFFFAA00); 
+                int titleX = isRightAligned ? x + BOX_WIDTH - font.width(title) : x;
+
+                graphics.text(font, title, titleX, y, 0xFFFFAA00, true);
                 y += 12;
 
-                for (int i = startIndex; i < endIndex; i++) {
-                    Map.Entry<String, Integer> entry = entryList.get(i);
-                    String itemStr = entry.getKey();
+                Iterator<Map.Entry<String, Integer>> it = entries.entrySet().iterator();
+                for (int skip = NotebookConfig.itemPage * ITEMS_PER_PAGE; skip > 0 && it.hasNext(); skip--) it.next();
+
+                for (int shown = 0; shown < ITEMS_PER_PAGE && it.hasNext(); shown++) {
+                    Map.Entry<String, Integer> entry = it.next();
                     int targetQuantity = entry.getValue();
-                    Identifier id = Identifier.tryParse(itemStr);
-                    
-                    if (id != null && Registries.ITEM.containsId(id)) {
-                        Item item = Registries.ITEM.get(id);
-                        ItemStack stack = item.getDefaultStack();
-                        int currentCount = countItemInInventory(client, item);
-                        String progressText = stack.getName().getString() + " " + currentCount + " / " + targetQuantity;
-                        
+                    Resolved r = resolve(entry.getKey());
+
+                    if (r != UNKNOWN) {
+                        int currentCount = inventoryCounts.getOrDefault(r.item(), 0);
+                        String progressText = r.name() + " " + currentCount + " / " + targetQuantity;
 
                         int color;
                         if (currentCount > targetQuantity) {
@@ -83,23 +103,22 @@ public class NotebookOverlayHud implements HudRenderCallback {
                         } else {
                             color = 0xFFFFFFFF; // White (Still gathering)
                         }
-                        
-                        int iconX = isRightAligned ? x + boxWidth - 16 : x;
-                        int textX = isRightAligned ? iconX - textRenderer.getWidth(progressText) - 4 : x + 20;
 
-                        context.drawItem(stack, iconX, y);
-                        context.drawTextWithShadow(textRenderer, progressText, textX, y + 4, color);
+                        int iconX = isRightAligned ? x + BOX_WIDTH - 16 : x;
+                        int textX = isRightAligned ? iconX - font.width(progressText) - 4 : x + 20;
+
+                        graphics.item(r.stack(), iconX, y);
+                        graphics.text(font, progressText, textX, y + 4, color, true);
                     } else {
-                        String fallback = "- " + itemStr + " ? / " + targetQuantity;
-                        int textX = isRightAligned ? x + boxWidth - textRenderer.getWidth(fallback) : x;
-                        
-                        context.drawTextWithShadow(textRenderer, fallback, textX, y + 4, 0xFFAAAAAA);
+                        String fallback = "- " + entry.getKey() + " ? / " + targetQuantity;
+                        int textX = isRightAligned ? x + BOX_WIDTH - font.width(fallback) : x;
+
+                        graphics.text(font, fallback, textX, y + 4, 0xFFAAAAAA, true);
                     }
                     y += 18;
                 }
             }
         }
-
 
         if (NotebookConfig.showTodoList && NotebookConfig.activeTodoList != null && !NotebookConfig.activeTodoList.isEmpty()) {
             TodoList activeTodo = TodoManager.getList(NotebookConfig.activeTodoList);
@@ -108,29 +127,28 @@ public class NotebookOverlayHud implements HudRenderCallback {
                 int y = NotebookConfig.todoListY;
                 boolean isRightAligned = x > (screenWidth / 2);
 
-
-                List<Map.Entry<String, Boolean>> todoList = new ArrayList<>(activeTodo.getTasks().entrySet());
-                int totalPages = Math.max(1, (int) Math.ceil((double) todoList.size() / itemsPerPage));
-                if (NotebookConfig.todoPage >= totalPages) NotebookConfig.todoPage = totalPages - 1;
-                if (NotebookConfig.todoPage < 0) NotebookConfig.todoPage = 0;
-
-                int startIndex = NotebookConfig.todoPage * itemsPerPage;
-                int endIndex = Math.min(startIndex + itemsPerPage, todoList.size());
+                Map<String, Boolean> tasks = activeTodo.getTasks();
+                int totalPages = totalPages(tasks.size());
+                NotebookConfig.todoPage = Math.max(0, Math.min(NotebookConfig.todoPage, totalPages - 1));
 
                 String pageString = totalPages > 1 ? " (" + (NotebookConfig.todoPage + 1) + "/" + totalPages + ")" : "";
                 String title = "To-Do: " + activeTodo.getName() + pageString;
-                int titleX = isRightAligned ? x + boxWidth - textRenderer.getWidth(title) : x;
-                
-                context.drawTextWithShadow(textRenderer, title, titleX, y, 0xFF55FF55);
+                int titleX = isRightAligned ? x + BOX_WIDTH - font.width(title) : x;
+
+                graphics.text(font, title, titleX, y, 0xFF55FF55, true);
                 y += 12;
 
-                for (int i = startIndex; i < endIndex; i++) {
-                    Map.Entry<String, Boolean> entry = todoList.get(i);
+                int visualIndex = NotebookConfig.todoPage * ITEMS_PER_PAGE;
+                Iterator<Map.Entry<String, Boolean>> it = tasks.entrySet().iterator();
+                for (int skip = visualIndex; skip > 0 && it.hasNext(); skip--) it.next();
+
+                for (int shown = 0; shown < ITEMS_PER_PAGE && it.hasNext(); shown++) {
+                    Map.Entry<String, Boolean> entry = it.next();
                     String task = entry.getKey();
                     boolean isChecked = entry.getValue();
-                    
+                    visualIndex++;
+
                     int color = isChecked ? 0xFFAAAAAA : 0xFFFFFFFF;
-                    int visualIndex = i + 1;
 
                     String fullText;
                     if (isRightAligned) {
@@ -141,9 +159,9 @@ public class NotebookOverlayHud implements HudRenderCallback {
                         fullText = prefix + (isChecked ? "[x] §m" : "[ ] ") + task;
                     }
 
-                    int textX = isRightAligned ? x + boxWidth - textRenderer.getWidth(fullText) : x;
-                    context.drawTextWithShadow(textRenderer, fullText, textX, y, color);
-                    y += 12; 
+                    int textX = isRightAligned ? x + BOX_WIDTH - font.width(fullText) : x;
+                    graphics.text(font, fullText, textX, y, color, true);
+                    y += 12;
                 }
             }
         }

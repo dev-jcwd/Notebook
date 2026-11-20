@@ -1,5 +1,5 @@
 {
-  "category.notebook": "Notebook",
+  "key.category.notebook.main": "Notebook",
   "key.notebook.edit_hud": "Edit HUD",
   "key.notebook.toggle_items": "Toggle List",
   "key.notebook.toggle_todo": "Toggle Todo",
